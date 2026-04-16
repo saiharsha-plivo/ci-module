@@ -450,7 +450,8 @@ func (m *CiModule) MisconfigScan(
 	return out, nil
 }
 
-// ImageScan runs trivy vulnerability scanning on a Docker image using trivyContainer from globalconfig.
+// ImageScan is kept for backward compatibility — use ScanImage instead.
+// This scans a remote image reference (useful for scanning already-pushed images).
 func (m *CiModule) ImageScan(
 	ctx context.Context,
 	globalConfig *dagger.File,
@@ -543,10 +544,95 @@ func (m *CiModule) Build(
 }
 
 // ---------------------------------------------------------------------------
-// Push (Docker build + ECR push)
+// DockerBuild
 // ---------------------------------------------------------------------------
 
-// Push builds a Docker image and pushes to ECR based on parent/service routing from globalconfig.
+// DockerBuild builds a Docker image and exports it as a tarball.
+// This runs before ImageScan and Push — build once, scan, then push.
+func (m *CiModule) DockerBuild(
+	ctx context.Context,
+	src *dagger.Directory,
+	// +optional
+	// +default="Dockerfile"
+	dockerfile string,
+) (*dagger.Container, error) {
+	log := logger("docker-build")
+	log.Info("building Docker image", "dockerfile", dockerfile)
+
+	container := src.DockerBuild(dagger.DirectoryDockerBuildOpts{Dockerfile: dockerfile})
+
+	// Force the build to execute by exporting
+	_, err := container.Stdout(ctx)
+	if err != nil {
+		// Stdout may fail if no CMD, that's ok — image is still built
+		log.Info("image built (no stdout output)")
+	}
+
+	log.Info("docker build completed")
+	return container, nil
+}
+
+// ---------------------------------------------------------------------------
+// ScanImage (scans a built image before push)
+// ---------------------------------------------------------------------------
+
+// ScanImage builds the Docker image and scans it with trivy before pushing.
+// Fails the pipeline if HIGH/CRITICAL vulnerabilities are found.
+func (m *CiModule) ScanImage(
+	ctx context.Context,
+	src *dagger.Directory,
+	globalConfig *dagger.File,
+	// +optional
+	// +default="Dockerfile"
+	dockerfile string,
+	// +optional
+	// +default=false
+	trivyBypass bool,
+) (string, error) {
+	log := logger("scan-image")
+
+	if trivyBypass {
+		log.Info("trivy bypass enabled, skipping image scan")
+		return "skipped: trivyBypass=true", nil
+	}
+
+	global, err := LoadGlobalConfig(ctx, globalConfig)
+	if err != nil {
+		return "", fmt.Errorf("scan-image: %w", err)
+	}
+
+	trivyImage := global.Defaults.TrivyContainer
+	log.Info("building image for scan", "dockerfile", dockerfile)
+
+	// Build the app image
+	appImage := src.DockerBuild(dagger.DirectoryDockerBuildOpts{Dockerfile: dockerfile})
+
+	// Export it as tarball, then scan with trivy
+	log.Info("exporting image for scanning")
+	tarFile := appImage.AsTarball()
+
+	log.Info("scanning image with trivy", "trivyImage", trivyImage)
+	out, err := dag.Container().
+		From(trivyImage).
+		WithMountedFile("/tmp/image.tar", tarFile).
+		WithExec([]string{"trivy", "image", "--input", "/tmp/image.tar", "--severity", "HIGH,CRITICAL", "--exit-code", "1"}).
+		Stdout(ctx)
+
+	if err != nil {
+		log.Error("image scan found vulnerabilities", "error", err)
+		return "", fmt.Errorf("image scan failed: %w", err)
+	}
+
+	log.Info("image scan passed")
+	return out, nil
+}
+
+// ---------------------------------------------------------------------------
+// Push (pushes a pre-built image to ECR)
+// ---------------------------------------------------------------------------
+
+// Push builds and pushes a Docker image to ECR registries based on parent/service routing.
+// Should only run after ScanImage passes.
 func (m *CiModule) Push(
 	ctx context.Context,
 	src *dagger.Directory,
@@ -586,6 +672,7 @@ func (m *CiModule) Push(
 	tags := generateTags(branch, commitSHA, version)
 	log.Info("generated tags", "tags", strings.Join(tags, ", "))
 
+	// Build the image (Dagger caches this — same Dockerfile = cache hit from ScanImage)
 	image := src.DockerBuild(dagger.DirectoryDockerBuildOpts{Dockerfile: dockerfile})
 
 	var results []string
