@@ -1,6 +1,6 @@
 defaults:
   checkoutDir: "."
-  buildContainer: plivo/jenkins-ci/debian:jessie
+  buildContainer: debian:bookworm-slim
   ecrRegistry: plivo-devops
   hipchatRoom: jenkins-notifications
   releasehipchatRoom: releases
@@ -11,15 +11,15 @@ defaults:
   artifactNumToKeep: 0
   timeoutHrs: 8
   sonarContainer: plivo/jenkins-ci/sonar-scanner:4.6.2.2472
-  semgrep: plivo/jenkins-ci/semgrep:semgrep-24.05.02.31
+  semgrep: semgrep/semgrep:latest
   semgrepScan: false
-  trivyContainer: "plivo/jenkins-ci/trivy:master-023a40e-1774161119627"
+  trivyContainer: "aquasec/trivy:latest"
   trivyDefaultTeamEmails : devops-team@plivo.com
   trivyScanEmailRecipients: rajat.d@plivo.com
   goldenAmiAutomationContainer: 'plivo/golden-ami-automation:07b20ab'
   nonAPIParents: sellular,contacto,coengage
-  kubeconformContainer: plivo/jenkins-ci/kubeconform:v0.4.13-12
-  dockerfileLintContainer: plivo/jenkins-ci/lint_dockerfile:20.02.19
+  kubeconformContainer: ghcr.io/yannh/kubeconform:latest
+  dockerfileLintContainer: hadolint/hadolint:latest
   build:
     nodejs:
       command: npm run build
