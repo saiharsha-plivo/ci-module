@@ -1,0 +1,196 @@
+defaults:
+  checkoutDir: "."
+  buildContainer: plivo/jenkins-ci/debian:jessie
+  ecrRegistry: plivo-devops
+  hipchatRoom: jenkins-notifications
+  releasehipchatRoom: releases
+  slackChannel: ci-cd-alerts
+  releaseslackRoom: jenkins-prod-notifications
+  agentLabel: c5_2xlarge_ubuntu_20_04_spot
+  buildNumToKeep: 5
+  artifactNumToKeep: 0
+  timeoutHrs: 8
+  sonarContainer: plivo/jenkins-ci/sonar-scanner:4.6.2.2472
+  semgrep: plivo/jenkins-ci/semgrep:semgrep-24.05.02.31
+  semgrepScan: false
+  trivyContainer: "plivo/jenkins-ci/trivy:master-023a40e-1774161119627"
+  trivyDefaultTeamEmails : devops-team@plivo.com
+  trivyScanEmailRecipients: rajat.d@plivo.com
+  goldenAmiAutomationContainer: 'plivo/golden-ami-automation:07b20ab'
+  nonAPIParents: sellular,contacto,coengage
+  kubeconformContainer: plivo/jenkins-ci/kubeconform:v0.4.13-12
+  dockerfileLintContainer: plivo/jenkins-ci/lint_dockerfile:20.02.19
+  build:
+    nodejs:
+      command: npm run build
+    hugo:
+      command: tree ; hugo
+  lint:
+    ignoreFailure: true
+    golang:
+      command: gometalinter --aggregate --vendor --deadline=600s --concurrency=4
+        --tests --disable=gotype --enable=gofmt --checkstyle ./...
+      reportFile: golang.lint.report.xml
+    python:
+      command: 'pylint . -r n --msg-template="{path}:{line}: [{msg_id}({symbol}),
+        {obj}] {msg}" --ignore=vendor'
+      reportFile: python.lint.report.txt
+    nodejs:
+      command: echo _NO_LINT_
+      reportFile: nodejs.lint.report.txt
+  unitTests:
+    ignoreFailure: true
+    golang:
+      testsReportFile: golang.tests.report.xml
+      coverageReportFile: golang.coverage.report.xml
+      command: 'rm -f test.out; echo "mode: set" > coverage.out; for pkg in $(go
+        list -f="{{if .TestGoFiles}}{{.ImportPath}}{{end}}" ./... | grep -v $( pwd
+        )); do echo "TESTING... $pkg"; go test -coverprofile=tmp.out $pkg >> test.out
+        || :; if [ -f tmp.out ]; then  cat tmp.out | grep -v "mode: set" >> coverage.out;  fi;  done;  rm
+        -f ./tmp.out; cat test.out | go-junit-report > golang.tests.report.xml;
+        gocov convert coverage.out | gocov-xml > golang.coverage.report.xml'
+      msan:
+        enabled: false
+        command: 'CC=clang go test -msan -v ./... || :'
+      datarace:
+        enabled: false
+        command: 'go test -race -v ./... || :'
+      benchmark:
+        enabled: false
+        command: 'go test -bench=. -v ./... || :'
+    python:
+      testsReportFile: python.tests.report.xml
+      coverageReportFile: python.coverage.report.xml
+      command: 'pytest --continue-on-collection-errors --cov=./ --cov-report xml:python.coverage.report.xml
+        --junit-xml=python.tests.report.xml tests/ || :'
+    nodejs:
+      testsReportFile: nodejs.tests.report.xml
+      coverageReportFile: nodejs.coverage.report.xml
+      command: 'npm run tests || :'
+accountIDs:
+  "974099507096": coengage-staging
+  "75823996792": sellular-dev
+  "322560418186": plivo-tools
+  "960958967026": sellular-prod
+  "296886968507": contacto-dev
+  "276108222778": contacto-prod
+  "105541789255": plivo-dev-sms
+  "457664347891": plivo-dev-voice
+  "857556598075": plivo-devops
+  "571669890552": plivo-stage
+  "814124840841": zentrunk
+  "425775279189": plivo-prod
+  "57831324427": plivo-numbers
+  "904578552753": plivo-phlo
+  "601324481034": plivo-dev-callinsights
+parentTeamEmails:
+  sellular: sellular@plivo.com
+  contacto: contacto-team@plivo.com
+  coengage: coengage-tech@plivo.com
+  sms: sms-internal@plivo.com
+  mms: sms-internal@plivo.com
+  voice: voice-team@plivo.com
+  zentrunk: zentrunk-dev@plivo.com
+  common: sms-dev@plivo.com,zentrunk-dev@plivo.com,voice-team@plivo.com
+  fin-systems: fin-systems@plivo.com
+  numbers: numbers-team@plivo.com
+  phlo: phlo-dev@plivo.com
+  platform: numbers-team@plivo.com,voice-team@plivo.com
+  central: sms-dev@plivo.com,zentrunk-dev@plivo.com,voice-team@plivo.com,numbers-team@plivo.com,devops-team@plivo.com
+  call-insights: voice-team@plivo.com
+ecrRegistries:
+  sellular: sellular-dev
+  contacto: contacto-dev
+  cx-e2e-automation: cx-e2e-automation
+  coengage: coengage-staging
+  devops: plivo-devops,plivo-stage
+  sensu: plivo-devops
+  buzzfeed: plivo-devops
+  consul-template-plugins: plivo-devops
+  consul: plivo-devops
+  elastic-stack: plivo-devops
+  central: plivo-devops
+  demo: plivo-stage
+ecrLifecycle:
+  plivo-prod: ecrLifecycleProd.json
+  sellular-prod: ecrLifecycleProd.json
+  contacto-prod: ecrLifecycleProd.json
+  plivo-devops: ecrLifecycleProd.json
+  plivo-stage: ecrLifecycleProd.json
+  plivo-tools: ecrLifecycleProd.json
+  coengage-staging: ecrLifecycleCoengageDev.json
+  contacto-dev: ecrLifecycleContactoDev.json
+  plivo-dev-sms: ecrLifecycleSmsDev.json
+  plivo-numbers: ecrLifecycleNumbersDev.json
+  cx-e2e-automation: ecrLifecycleCxE2eAutomation.json
+ecrPolicy:
+  sellular-prod: ecrPolicySellularProd.json
+  contacto-prod: ecrPolicyContactoProd.json
+  plivo-prod: ecrPolicyPlivoProd.json
+  plivo-devops: ecrPolicyDevops.json
+  plivo-stage: ecrPolicyDevops.json
+artifactsBuckets: plivo-prod-build-artifacts,plivo-stage-build-artifacts,contacto-dev-build-artifacts,contacto-prod-build-artifacts
+ecrRegistryUrl:
+  cx-e2e-automation: 296886968507.dkr.ecr.us-east-1.amazonaws.com
+  coengage-staging: 974099507096.dkr.ecr.us-east-1.amazonaws.com
+  sellular-dev: 075823996792.dkr.ecr.us-east-1.amazonaws.com
+  plivo-tools: 322560418186.dkr.ecr.us-west-1.amazonaws.com
+  sellular-prod: 960958967026.dkr.ecr.us-east-1.amazonaws.com
+  contacto-dev: 296886968507.dkr.ecr.us-east-1.amazonaws.com
+  contacto-prod: 276108222778.dkr.ecr.us-east-1.amazonaws.com
+  plivo-dev-sms: 105541789255.dkr.ecr.us-east-1.amazonaws.com
+  plivo-dev-voice: 457664347891.dkr.ecr.us-east-1.amazonaws.com
+  plivo-devops: 857556598075.dkr.ecr.us-west-1.amazonaws.com
+  plivo-stage: 571669890552.dkr.ecr.us-east-1.amazonaws.com
+  zentrunk: 814124840841.dkr.ecr.us-east-1.amazonaws.com
+  plivo-prod: 425775279189.dkr.ecr.us-west-1.amazonaws.com,425775279189.dkr.ecr.us-east-1.amazonaws.com
+  plivo-numbers: 057831324427.dkr.ecr.us-east-1.amazonaws.com
+  plivo-phlo: 904578552753.dkr.ecr.us-east-1.amazonaws.com
+  plivo-dev-callinsights: 601324481034.dkr.ecr.us-west-1.amazonaws.com
+credentials:
+  ecs:
+    plivo-dev-api: ECS_DEPLOYER_DEV_API
+    plivo-dev-sms: ECS_DEPLOYER_PLIVO_SMS_DEV
+    plivo-dev-voice: ECS_DEPLOYER_PLIVO_VOICE_DEV
+    plivo-stage: ECS_DEPLOYER_STAGE
+    plivo-devops: ECS_DEPLOYER_STAGE
+    sellular-dev: ECS_DEPLOYER_SELLULAR_DEV
+    contacto-dev: ECS_DEPLOYER_CONTACTO_DEV
+    contacto-prod: ECS_DEPLOYER_CONTACTO_PROD
+    plivo-prod: ECS_DEPLOYER_PROD
+    plivo-numbers: ECS_DEPLOYER_NUMBERS
+    plivo-phlo: ECS_DEPLOYER_PHLO
+    plivo-dev-callinsights: ECS_DEPLOYER_DEVCALLINSIGHTS
+    zentrunk: ECS_DEPLOYER_ZENTRUNK
+    sellular-prod: ECS_DEPLOYER_SELLULAR_PROD
+    coengage-staging: ECS_DEPLOYER_COENGAGE_STAGING
+  ecr:
+    coengage-staging: ECR-COENGAGE-STAGING
+    plivo-devops: ECR-DEVOPS
+    plivo-stage: ECR-STAGE
+    plivo-tools: ECR
+    sellular-dev: ECR-SELLULAR-DEV
+    sellular-prod: ECR-SELLULAR-PROD
+    contacto-dev: ECR-CONTACTO-DEV
+    contacto-prod: ECR-CONTACTO-PROD
+    cx-e2e-automation: ECR-CONTACTO-DEV
+    plivo-dev-sms: ECR-SMS-DEV
+    plivo-dev-voice: ECR-VOICE-DEV
+    zentrunk: ECR-ZENTRUNK-DEV
+    plivo-prod: ECR-PLIVO-PROD
+    plivo-numbers: ECR-NUMBERS-DEV
+    plivo-phlo: ECR-PHLO-DEV
+    plivo-dev-callinsights: ECR-CALLINSIGHTS-DEV
+  lambda:
+    plivo-numbers: NUMBERS_DEPLOYER_LAMBDA
+    plivo-dev-voice: VOICE_DEPLOYER_LAMBDA
+    plivo-dev-sms: SMS_DEPLOYER_LAMBDA
+    plivo-prod: LAMBDA_DEPLOYER_PROD
+  slack:
+    jenkins-notifications: SLACK_AUTH_TOKEN
+    coengage-jenkins-feed: COENGAGE_AUTH_TOKEN
+    releases: SLACK_RELEASES_AUTH_TOKEN
+    cicd-tests-dev-notifications: SLACK_AUTH_KEY_TEST_DEV
+    cicd-tests-release-notifications: SLACK_AUTH_KEY_TEST_RELEASES
+    ci-cd-alerts: SLACK_INTEGRATION_KEY
+    jenkins-prod-notifications: SLACK_INTEGRATION_KEY
