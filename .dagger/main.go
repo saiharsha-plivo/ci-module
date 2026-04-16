@@ -422,9 +422,12 @@ func (m *CiModule) MisconfigScan(
 	ctx context.Context,
 	src *dagger.Directory,
 	globalConfig *dagger.File,
+	// +optional
+	// +default=false
+	ignoreFailure bool,
 ) (string, error) {
 	log := logger("misconfig-scan")
-	log.Info("starting misconfiguration scan")
+	log.Info("starting misconfiguration scan", "ignoreFailure", ignoreFailure)
 
 	global, err := LoadGlobalConfig(ctx, globalConfig)
 	if err != nil {
@@ -442,6 +445,10 @@ func (m *CiModule) MisconfigScan(
 		Stdout(ctx)
 
 	if err != nil {
+		if ignoreFailure {
+			log.Warn("misconfiguration scan failed but ignoreFailure=true", "error", err)
+			return "misconfig scan failed (ignored): " + err.Error(), nil
+		}
 		log.Error("misconfiguration scan failed", "error", err)
 		return "", fmt.Errorf("misconfiguration scan failed: %w", err)
 	}
@@ -587,14 +594,10 @@ func (m *CiModule) ScanImage(
 	dockerfile string,
 	// +optional
 	// +default=false
-	trivyBypass bool,
+	ignoreFailure bool,
 ) (string, error) {
 	log := logger("scan-image")
-
-	if trivyBypass {
-		log.Info("trivy bypass enabled, skipping image scan")
-		return "skipped: trivyBypass=true", nil
-	}
+	log.Info("starting image scan", "ignoreFailure", ignoreFailure)
 
 	global, err := LoadGlobalConfig(ctx, globalConfig)
 	if err != nil {
@@ -619,6 +622,10 @@ func (m *CiModule) ScanImage(
 		Stdout(ctx)
 
 	if err != nil {
+		if ignoreFailure {
+			log.Warn("image scan failed but ignoreFailure=true", "error", err)
+			return "image scan failed (ignored): " + err.Error(), nil
+		}
 		log.Error("image scan found vulnerabilities", "error", err)
 		return "", fmt.Errorf("image scan failed: %w", err)
 	}
