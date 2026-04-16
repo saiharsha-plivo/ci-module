@@ -28,8 +28,7 @@ defaults:
   lint:
     ignoreFailure: true
     golang:
-      command: gometalinter --aggregate --vendor --deadline=600s --concurrency=4
-        --tests --disable=gotype --enable=gofmt --checkstyle ./...
+      command: "go vet ./..."
       reportFile: golang.lint.report.xml
     python:
       command: 'pylint . -r n --msg-template="{path}:{line}: [{msg_id}({symbol}),
@@ -43,12 +42,7 @@ defaults:
     golang:
       testsReportFile: golang.tests.report.xml
       coverageReportFile: golang.coverage.report.xml
-      command: 'rm -f test.out; echo "mode: set" > coverage.out; for pkg in $(go
-        list -f="{{if .TestGoFiles}}{{.ImportPath}}{{end}}" ./... | grep -v $( pwd
-        )); do echo "TESTING... $pkg"; go test -coverprofile=tmp.out $pkg >> test.out
-        || :; if [ -f tmp.out ]; then  cat tmp.out | grep -v "mode: set" >> coverage.out;  fi;  done;  rm
-        -f ./tmp.out; cat test.out | go-junit-report > golang.tests.report.xml;
-        gocov convert coverage.out | gocov-xml > golang.coverage.report.xml'
+      command: "go test -v -race -coverprofile=coverage.out ./..."
       msan:
         enabled: false
         command: 'CC=clang go test -msan -v ./... || :'
