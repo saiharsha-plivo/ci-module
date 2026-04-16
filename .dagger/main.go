@@ -376,8 +376,8 @@ func (m *CiModule) Semgrep(
 		Stdout(ctx)
 
 	if err != nil {
-		log.Warn("semgrep found issues", "error", err)
-		return out, nil
+		log.Error("semgrep scan failed", "error", err)
+		return "", fmt.Errorf("semgrep scan failed: %w", err)
 	}
 
 	log.Info("semgrep scan passed")
@@ -409,8 +409,8 @@ func (m *CiModule) SecretScan(
 		Stdout(ctx)
 
 	if err != nil {
-		log.Warn("secret scan found issues", "error", err)
-		return out, nil
+		log.Error("secret scan failed", "error", err)
+		return "", fmt.Errorf("secret scan failed: %w", err)
 	}
 
 	log.Info("secret scan passed")
@@ -442,8 +442,8 @@ func (m *CiModule) MisconfigScan(
 		Stdout(ctx)
 
 	if err != nil {
-		log.Warn("misconfiguration scan found issues", "error", err)
-		return out, nil
+		log.Error("misconfiguration scan failed", "error", err)
+		return "", fmt.Errorf("misconfiguration scan failed: %w", err)
 	}
 
 	log.Info("misconfiguration scan passed")
@@ -480,8 +480,8 @@ func (m *CiModule) ImageScan(
 		Stdout(ctx)
 
 	if err != nil {
-		log.Warn("image scan found vulnerabilities", "error", err)
-		return out, nil
+		log.Error("image scan failed", "error", err)
+		return "", fmt.Errorf("image scan failed: %w", err)
 	}
 
 	log.Info("image scan passed")
