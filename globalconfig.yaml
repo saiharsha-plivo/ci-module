@@ -13,7 +13,7 @@ defaults:
   sonarContainer: plivo/jenkins-ci/sonar-scanner:4.6.2.2472
   semgrep: semgrep/semgrep:latest
   semgrepScan: false
-  trivyContainer: "aquasec/trivy:latest"
+  trivyContainer: "aquasecurity/trivy:latest"
   trivyDefaultTeamEmails : devops-team@plivo.com
   trivyScanEmailRecipients: rajat.d@plivo.com
   goldenAmiAutomationContainer: 'plivo/golden-ami-automation:07b20ab'
